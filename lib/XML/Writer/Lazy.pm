@@ -62,6 +62,10 @@ Peter Sergeant - C<pete@clueball.com>
 
 L<https://github.com/pjlsergeant/p5-xml-writer-lazy>
 
+=head1 LICENSE
+
+MIT - see the C<LICENSE> file included in the tar.gz of this distribution.
+
 =cut
 
 use strict;
