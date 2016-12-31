@@ -56,6 +56,12 @@ the contents of C<print>. If you -- post instantiation -- replace the output
 object, you can call this method to rewrap it. It will change the class that
 that object belongs to.
 
+=head1 AUTHOR
+
+Peter Sergeant - C<pete@clueball.com>
+
+L<https://github.com/pjlsergeant/p5-xml-writer-lazy>
+
 =cut
 
 use strict;
@@ -149,7 +155,7 @@ sub wrap_output {
     );
 }
 
-package XML::Writer::Lazy::InterceptPrint {
+package XML::Writer::Lazy::InterceptPrint;
     our $intercept = 1;
 
     use vars '$AUTOLOAD';
@@ -188,18 +194,17 @@ package XML::Writer::Lazy::InterceptPrint {
         # we were never here...
         goto &$ref;
     }
-}
 
-package XML::Writer::Lazy::NullHandler {
+
+package XML::Writer::Lazy::NullHandler;
 
     # I'm used when we don't want to actually write anything out
     #use vars '$AUTOLOAD';
     sub AUTOLOAD { }
 
     #my ($sub) = $AUTOLOAD =~ /.*::(.*?)$/;
-}
 
-package XML::Writer::Lazy::Handler {
+package XML::Writer::Lazy::Handler;
     our $writer;
     our $xml_dec = 0;
 
@@ -376,7 +381,5 @@ package XML::Writer::Lazy::Handler {
         my $data = shift;
         die "'fatal_error' event not yet implemented";
     }
-
-}
 
 1;

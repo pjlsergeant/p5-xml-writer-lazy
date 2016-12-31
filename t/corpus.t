@@ -17,7 +17,6 @@ sub wanted { push(@corpus, $File::Find::name) if m/\.xml$/ }
 @corpus = @ARGV if @ARGV;
 plan tests => scalar @corpus;
 
-
 my $diff = XML::SemanticDiff->new();
 
 for my $test ( sort @corpus ) {
