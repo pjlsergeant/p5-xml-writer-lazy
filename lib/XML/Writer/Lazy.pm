@@ -308,109 +308,109 @@ MSG
 sub set_document_locator {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'set_document_locator' ) );
+    return croak( not_implemented('set_document_locator') );
 }
 
 sub skipped_entity {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'skipped_entity' ) );
+    return croak( not_implemented('skipped_entity') );
 }
 
 sub entity_reference {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'entity_reference' ) );
+    return croak( not_implemented('entity_reference') );
 }
 
 sub notation_decl {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'notation_decl' ) );
+    return croak( not_implemented('notation_decl') );
 }
 
 sub unparsed_entity_decl {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'unparsed_entity_decl' ) );
+    return croak( not_implemented('unparsed_entity_decl') );
 }
 
 sub element_decl {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'element_decl' ) );
+    return croak( not_implemented('element_decl') );
 }
 
 sub attlist_decl {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'attlist_decl' ) );
+    return croak( not_implemented('attlist_decl') );
 }
 
 sub doctype_decl {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'doctype_decl' ) );
+    return croak( not_implemented('doctype_decl') );
 }
 
 sub entity_decl {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'entity_decl' ) );
+    return croak( not_implemented('entity_decl') );
 }
 
 sub attribute_decl {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'attribute_decl' ) );
+    return croak( not_implemented('attribute_decl') );
 }
 
 sub internal_entity_decl {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'internal_entity_decl' ) );
+    return croak( not_implemented('internal_entity_decl') );
 }
 
 sub external_entity_decl {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'external_entity_decl' ) );
+    return croak( not_implemented('external_entity_decl') );
 }
 
 sub resolve_entity {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'resolve_entity' ) );
+    return croak( not_implemented('resolve_entity') );
 }
 
 sub start_entity {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'start_entity' ) );
+    return croak( not_implemented('start_entity') );
 }
 
 sub end_entity {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'end_entity' ) );
+    return croak( not_implemented('end_entity') );
 }
 
 sub warning {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'warning' ) );
+    return croak( not_implemented('warning') );
 }
 
 sub error {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'error' ) );
+    return croak( not_implemented('error') );
 }
 
 sub fatal_error {
     my $self = shift;
     my $data = shift;
-    return croak( not_implemented( 'fatal_error' ) );
+    return croak( not_implemented('fatal_error') );
 }
 
 1;
