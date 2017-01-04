@@ -119,11 +119,12 @@ sub lazily {
     my ( $self, $string, $writer ) = @_;
 
     # Set the writer object that the Handler is using
-    local $XML::Writer::Lazy::Handler::writer = $writer // $self;
+    local $XML::Writer::Lazy::Handler::writer
+        = ( defined $writer ) ? $writer : $self;
 
     # Whether or not we might be trying to print an XML dec
     local $XML::Writer::Lazy::Handler::xml_dec
-        = ( $string =~ m/^(?:\xEF\xBB\xBF)?<\?xml/i );
+        = ( $string =~ m/^(\xEF\xBB\xBF)?<\?xml/i );
 
     # First thing we do is look at anything that was output directly by
     # XML::Writer, and pass that to the Chunk Parser
@@ -148,6 +149,8 @@ sub lazily {
         local $XML::Writer::Lazy::Handler::writer = $null_handler;
         $self->{$KEY}->{'parser'}->parse_chunk("<!-- -->");
     }
+
+    return $self;
 }
 
 sub wrap_output {
@@ -157,233 +160,257 @@ sub wrap_output {
             $self->getOutput(), $self
         )
     );
+
+    return $self;
 }
 
 package XML::Writer::Lazy::InterceptPrint;
-    our $intercept = 1;
+our $intercept = 1;
 
-    use vars '$AUTOLOAD';
-    use Scalar::Util qw/weaken/;
+use vars '$AUTOLOAD';
+use Scalar::Util qw/weaken/;
 
-    sub ___wrap {
-        my ( $classname, $delegate, $me ) = @_;
-        weaken $delegate;
-        weaken $me;
-        return bless [ $delegate, $me ], $classname;
-    }
+sub ___wrap {
+    my ( $classname, $delegate, $me ) = @_;
+    weaken $delegate;
+    weaken $me;
+    return bless [ $delegate, $me ], $classname;
+}
 
-    sub AUTOLOAD {
-        my ($sub) = $AUTOLOAD =~ /.*::(.*?)$/;
-        return if $sub eq "DESTROY";
-        my $self = shift;
+sub AUTOLOAD {
+    my $self = shift;
 
-        # The object we'll be executing against
-        my $wraps = $self->[0];
+    my ($sub) = $AUTOLOAD =~ /.*::(.*?)$/;
+    return if $sub eq "DESTROY";
 
-        # Get a reference to the original
-        my $ref = $wraps->can($sub);
+    # The object we'll be executing against
+    my $wraps = $self->[0];
 
-        # Do something clever with print
-        if ( $sub eq 'print' ) {
-            if ($intercept) {
-                $self->[1]->{$KEY}->{'buffer'} .= join '',
-                    @_;
-            }
+    # Get a reference to the original
+    my $ref = $wraps->can($sub);
+
+    # Do something clever with print
+    if ( $sub eq 'print' ) {
+        if ($intercept) {
+            $self->[1]->{$KEY}->{'buffer'} .= join '', @_;
         }
-
-        # Add the wrapped object to the front of @_
-        unshift( @_, $wraps );
-
-        # Redispatch; goto replaces the current stack frame, so it's like
-        # we were never here...
-        goto &$ref;
     }
 
+    # Add the wrapped object to the front of @_
+    unshift( @_, $wraps );
+
+    # Redispatch; goto replaces the current stack frame, so it's like
+    # we were never here...
+    goto &$ref;
+}
 
 package XML::Writer::Lazy::NullHandler;
 
-    # I'm used when we don't want to actually write anything out
-    #use vars '$AUTOLOAD';
-    sub AUTOLOAD { }
+# I'm used when we don't want to actually write anything out
+#use vars '$AUTOLOAD';
+sub AUTOLOAD { }
 
-    #my ($sub) = $AUTOLOAD =~ /.*::(.*?)$/;
+#my ($sub) = $AUTOLOAD =~ /.*::(.*?)$/;
 
 package XML::Writer::Lazy::Handler;
-    our $writer;
-    our $xml_dec = 0;
+our $writer;
+our $xml_dec = 0;
 
-    use base qw(XML::SAX::Base);
+use base qw(XML::SAX::Base);
+use Carp qw/croak/;
 
-    # This gets run for the first chunk
-    sub xml_decl {
-        my ( $self, $element ) = @_;
-        return unless $xml_dec;
-        $writer->xmlDecl( $element->{'Encoding'} // () );
-    }
+# This gets run for the first chunk
+sub xml_decl {
+    my ( $self, $element ) = @_;
+    return unless $xml_dec;
+    $writer->xmlDecl(
+          ( defined $element->{'Encoding'} )
+        ? ( $element->{'Encoding'} )
+        : ()
+    );
+    return;
+}
 
-    sub start_element {
-        my ( $self, $element ) = @_;
-        my %attributes = %{ $element->{'Attributes'} };
-        my @attributes;
-        for my $attr ( keys %attributes ) {
-            if ( ref( $attributes{$attr} ) eq 'HASH' ) {
-                my $data = $attributes{$attr};
-                push( @attributes, [ $data->{'Name'}, $data->{'Value'} ] );
-            }
-            else {
-                push( @attributes, [ $attr, $attributes{$attr} ] );
-            }
+sub start_element {
+    my ( $self, $element ) = @_;
+    my %attributes = %{ $element->{'Attributes'} };
+    my @attributes;
+    for my $attr ( keys %attributes ) {
+        if ( ref( $attributes{$attr} ) eq 'HASH' ) {
+            my $data = $attributes{$attr};
+            push( @attributes, [ $data->{'Name'}, $data->{'Value'} ] );
         }
-
-        @attributes = map {@$_} sort { $a->[0] cmp $b->[0] } @attributes;
-        $writer->startTag( $element->{'Name'}, @attributes );
+        else {
+            push( @attributes, [ $attr, $attributes{$attr} ] );
+        }
     }
 
-    sub end_element {
-        my ( $self, $element ) = @_;
-        $writer->endTag( $element->{'Name'} );
-    }
+    @attributes = map {@$_} sort { $a->[0] cmp $b->[0] } @attributes;
+    $writer->startTag( $element->{'Name'}, @attributes );
+    return;
+}
 
-    sub characters {
-        my ( $self, $characters ) = @_;
-        $writer->characters( $characters->{'Data'} );
-    }
+sub end_element {
+    my ( $self, $element ) = @_;
+    $writer->endTag( $element->{'Name'} );
+    return;
+}
 
-    sub processing_instruction {
-        my ( $self, $pi ) = @_;
-        $writer->pi( $pi->{'Target'}, $pi->{'Data'} );
-    }
+sub characters {
+    my ( $self, $characters ) = @_;
+    $writer->characters( $characters->{'Data'} );
+    return;
+}
 
-    sub comment {
-        my ( $self, $comment ) = @_;
-        $comment->{'Data'} ||= '';
-        $comment->{'Data'} =~ s/^ //;
-        $comment->{'Data'} =~ s/ $//;
-        $writer->comment( $comment->{'Data'} );
-    }
+sub processing_instruction {
+    my ( $self, $pi ) = @_;
+    $writer->pi( $pi->{'Target'}, $pi->{'Data'} );
+    return;
+}
 
-    sub start_dtd {
-        my ( $self, $dtd ) = @_;
-        $writer->doctype( $dtd->{'Name'}, $dtd->{'PublicId'},
-            $dtd->{'SystemId'} );
-    }
+sub comment {
+    my ( $self, $comment ) = @_;
+    $comment->{'Data'} ||= '';
+    $comment->{'Data'} =~ s/^ //;
+    $comment->{'Data'} =~ s/ $//;
+    $writer->comment( $comment->{'Data'} );
+    return;
+}
 
-    sub start_prefix_mapping {
-        my ( $self, $prefix_mapping ) = @_;
-        $writer->addPrefix( $prefix_mapping->{'NamespaceURI'},
-            $prefix_mapping->{'Prefix'} );
-    }
+sub start_dtd {
+    my ( $self, $dtd ) = @_;
+    $writer->doctype( $dtd->{'Name'}, $dtd->{'PublicId'},
+        $dtd->{'SystemId'} );
+    return;
+}
 
-    # No work needed, as the insides will already be magically quoted
-    sub start_cdata { }
-    sub end_cdata   { }
+sub start_prefix_mapping {
+    my ( $self, $prefix_mapping ) = @_;
+    $writer->addPrefix( $prefix_mapping->{'NamespaceURI'},
+        $prefix_mapping->{'Prefix'} );
+    return;
+}
 
-    sub set_document_locator {
-        my $self = shift;
-        my $data = shift;
-        die "'set_document_locator' event not yet implemented";
-    }
+# No work needed, as the insides will already be magically quoted
+sub start_cdata { return; }
+sub end_cdata   { return; }
 
-    sub skipped_entity {
-        my $self = shift;
-        my $data = shift;
-        die "'skipped_entity' event not yet implemented";
-    }
+sub not_implemented {
+    my ($event) = @_;
+    return <<"MSG";
+The XML passed to 'lazily()' triggered a `$event` SAX event,
+but XML::Writer::Lazy doesn't yet handle those. You can either simplify your
+input XML or alternatively you could monkey-patch `XML::Writer::Lazy::Handler`
+to add a `$event()` handler method to it.
+MSG
+}
 
-    sub entity_reference {
-        my $self = shift;
-        my $data = shift;
-        die "'entity_reference' event not yet implemented";
-    }
+sub set_document_locator {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'set_document_locator' ) );
+}
 
-    sub notation_decl {
-        my $self = shift;
-        my $data = shift;
-        die "'notation_decl' event not yet implemented";
-    }
+sub skipped_entity {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'skipped_entity' ) );
+}
 
-    sub unparsed_entity_decl {
-        my $self = shift;
-        my $data = shift;
-        die "'unparsed_entity_decl' event not yet implemented";
-    }
+sub entity_reference {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'entity_reference' ) );
+}
 
-    sub element_decl {
-        my $self = shift;
-        my $data = shift;
-        die "'element_decl' event not yet implemented";
-    }
+sub notation_decl {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'notation_decl' ) );
+}
 
-    sub attlist_decl {
-        my $self = shift;
-        my $data = shift;
-        die "'attlist_decl' event not yet implemented";
-    }
+sub unparsed_entity_decl {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'unparsed_entity_decl' ) );
+}
 
-    sub doctype_decl {
-        my $self = shift;
-        my $data = shift;
-        die "'doctype_decl' event not yet implemented";
-    }
+sub element_decl {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'element_decl' ) );
+}
 
-    sub entity_decl {
-        my $self = shift;
-        my $data = shift;
-        die "'entity_decl' event not yet implemented";
-    }
+sub attlist_decl {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'attlist_decl' ) );
+}
 
-    sub attribute_decl {
-        my $self = shift;
-        my $data = shift;
-        die "'attribute_decl' event not yet implemented";
-    }
+sub doctype_decl {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'doctype_decl' ) );
+}
 
-    sub internal_entity_decl {
-        my $self = shift;
-        my $data = shift;
-        die "'internal_entity_decl' event not yet implemented";
-    }
+sub entity_decl {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'entity_decl' ) );
+}
 
-    sub external_entity_decl {
-        my $self = shift;
-        my $data = shift;
-        die "'external_entity_decl' event not yet implemented";
-    }
+sub attribute_decl {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'attribute_decl' ) );
+}
 
-    sub resolve_entity {
-        my $self = shift;
-        my $data = shift;
-        die "'resolve_entity' event not yet implemented";
-    }
+sub internal_entity_decl {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'internal_entity_decl' ) );
+}
 
-    sub start_entity {
-        my $self = shift;
-        my $data = shift;
-        die "'start_entity' event not yet implemented";
-    }
+sub external_entity_decl {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'external_entity_decl' ) );
+}
 
-    sub end_entity {
-        my $self = shift;
-        my $data = shift;
-        die "'end_entity' event not yet implemented";
-    }
+sub resolve_entity {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'resolve_entity' ) );
+}
 
-    sub warning {
-        my $self = shift;
-        my $data = shift;
-        die "'warning' event not yet implemented";
-    }
+sub start_entity {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'start_entity' ) );
+}
 
-    sub error {
-        my $self = shift;
-        my $data = shift;
-        die "'error' event not yet implemented";
-    }
+sub end_entity {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'end_entity' ) );
+}
 
-    sub fatal_error {
-        my $self = shift;
-        my $data = shift;
-        die "'fatal_error' event not yet implemented";
-    }
+sub warning {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'warning' ) );
+}
+
+sub error {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'error' ) );
+}
+
+sub fatal_error {
+    my $self = shift;
+    my $data = shift;
+    return croak( not_implemented( 'fatal_error' ) );
+}
 
 1;
