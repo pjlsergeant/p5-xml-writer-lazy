@@ -39,32 +39,7 @@ Using a SAX parser whose events are then passed back to XML::Writer.
 
 =head1 METHODS
 
-This is a subclass of L<XML::Writer>. Two methods are added:
-
-=head2 lazily
-
-Take a string of XML. It should be parseable, although doesn't need to be
-balanced. C<< <foo><bar>asdf >> is fine, where C<< <foo >> is not. Exercises
-the XML::Writer methods appropriately to re-create whatever you'd passed in.
-
-=head2 wrap_output
-
-Only important if you're doing strange things with the C<OUTPUT> after
-instantiation. In order to keep track of what's been written already, this
-class wraps the C<OUTPUT> object inside a delegate that intercepts and stores
-the contents of C<print>. If you -- post instantiation -- replace the output
-object, you can call this method to rewrap it. It will change the class that
-that object belongs to.
-
-=head1 AUTHOR
-
-Peter Sergeant - C<pete@clueball.com>
-
-L<https://github.com/pjlsergeant/p5-xml-writer-lazy>
-
-=head1 LICENSE
-
-MIT - see the C<LICENSE> file included in the tar.gz of this distribution.
+B<This is a subclass of> L<XML::Writer>.
 
 =cut
 
@@ -86,6 +61,13 @@ use XML::SAX;
 #
 
 my $KEY = '_XML_Writer_Lazy_Parser';
+
+=head2 new
+
+Call's L<XML::Writer>'s C<new()> and then instantiates the lazy
+parser pieces. Accepts all the same arguments as the parent method.
+
+=cut
 
 sub new {
     my $classname = shift;
@@ -114,6 +96,14 @@ sub new {
 }
 
 my $null_handler = bless {}, 'XML::Writer::Lazy::NullHandler';
+
+=head2 lazily
+
+Take a string of XML. It should be parseable, although doesn't need to be
+balanced. C<< <foo><bar>asdf >> is fine, where C<< <foo >> is not. Exercises
+the XML::Writer methods appropriately to re-create whatever you'd passed in.
+
+=cut
 
 sub lazily {
     my ( $self, $string, $writer ) = @_;
@@ -153,6 +143,17 @@ sub lazily {
     return $self;
 }
 
+=head2 wrap_output
+
+Only important if you're doing strange things with the C<OUTPUT> after
+instantiation. In order to keep track of what's been written already, this
+class wraps the C<OUTPUT> object inside a delegate that intercepts and stores
+the contents of C<print>. If you -- post instantiation -- replace the output
+object, you can call this method to rewrap it. It will change the class that
+that object belongs to.
+
+=cut
+
 sub wrap_output {
     my $self = shift;
     $self->setOutput(
@@ -164,6 +165,19 @@ sub wrap_output {
     return $self;
 }
 
+=head1 AUTHOR
+
+Peter Sergeant - C<pete@clueball.com>
+
+L<https://github.com/pjlsergeant/p5-xml-writer-lazy>
+
+=head1 LICENSE
+
+MIT - see the C<LICENSE> file included in the tar.gz of this distribution.
+
+=cut
+
+# I capture output that's produced by calling XML::Writer's methods directly
 package XML::Writer::Lazy::InterceptPrint;
 our $intercept = 1;
 
@@ -204,14 +218,7 @@ sub AUTOLOAD {
     goto &$ref;
 }
 
-package XML::Writer::Lazy::NullHandler;
-
-# I'm used when we don't want to actually write anything out
-#use vars '$AUTOLOAD';
-sub AUTOLOAD { }
-
-#my ($sub) = $AUTOLOAD =~ /.*::(.*?)$/;
-
+# I'm the handling class the SAX parser calls when events are generated
 package XML::Writer::Lazy::Handler;
 our $writer;
 our $xml_dec = 0;
@@ -412,5 +419,11 @@ sub fatal_error {
     my $data = shift;
     return croak( not_implemented('fatal_error') );
 }
+
+# I'm used when we feed captured output from XML::Writer to the SAX parser,
+# and don't actually want to redispatch that to XML::Writer. I accept and
+# silently drop all method calls.
+package XML::Writer::Lazy::NullHandler;
+sub AUTOLOAD { }
 
 1;

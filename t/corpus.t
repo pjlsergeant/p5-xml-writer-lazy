@@ -15,7 +15,6 @@ find(\&wanted, 't/corpus/');
 sub wanted { push(@corpus, $File::Find::name) if m/\.xml$/ }
 
 @corpus = @ARGV if @ARGV;
-plan tests => scalar @corpus;
 
 my $diff = XML::SemanticDiff->new();
 
@@ -43,3 +42,8 @@ for my $test ( sort @corpus ) {
     }
 
 }
+
+# There appears to be some kind of cleanup issue without this
+undef($diff);
+
+done_testing();
